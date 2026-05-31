@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>WebAR Puro</title>
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <!-- Motores do A-Frame e AR.js -->
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  </head>
+
+  <body style="margin: 0px; overflow: hidden;">
+    <!-- Forçamos o AR.js a usar APENAS a webcam do navegador, ignorando o sistema do celular -->
+    <a-scene embedded arjs="sourceType: webcam; trackingMethod: best; debugUIEnabled: false;" vr-mode-ui="enabled: false">
+      
+      <!-- Marcador Hiro do AR.js -->
+      <a-marker preset="hiro">
+        <!-- O link direto e puro do seu móvel -->
+        <a-gltf-model 
+          src="https://raw.githubusercontent.com/Anonimo5/meu-webar/main/mesa.glb" 
+          scale="0.5 0.5 0.5" 
+          position="0 0 0">
+        </a-gltf-model>
+      </a-marker>
+      
+      <a-entity camera></a-entity>
+    </a-scene>
+  </body>
+</html>
