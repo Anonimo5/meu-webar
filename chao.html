@@ -2,12 +2,12 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visualizador de Móveis - Controle Total</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Visualizador de Móveis - Touch Pro</title>
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; background-color: #000; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; background-color: #000; user-select: none; }
         
         #webcam {
             position: fixed;
@@ -17,39 +17,23 @@
             z-index: 1;
         }
 
-        a-scene {
+        #zona-touch {
             position: absolute;
             top: 0; left: 0;
             width: 100%; height: 100%;
-            z-index: 2;
+            z-index: 999; /* Fica por cima de tudo para capturar os dedos */
         }
-        
-        /* Painel ajustado para caber os novos botões de graus */
-        .painel-controles {
-            position: fixed;
-            bottom: 15px; left: 50%;
-            transform: translateX(-50%);
-            display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;
-            z-index: 999;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 10px; border-radius: 12px; width: 95%; max-width: 440px;
-        }
-        .btn-controle {
-            background: #007bff; color: white; border: none; padding: 10px 6px;
-            border-radius: 6px; font-size: 11px; font-weight: bold;
-            flex: 1 1 22%; min-width: 85px; text-align: center;
-        }
-        .btn-controle:active { background: #0056b3; }
         
         .instrucao {
-            position: fixed; top: 15px; width: 100%; text-align: center;
+            position: fixed; top: 20px; width: 100%; text-align: center;
             color: white; text-shadow: 1px 1px 4px black; font-size: 14px;
-            z-index: 999; pointer-events: none;
+            z-index: 1000; pointer-events: none;
+            background: rgba(0,0,0,0.4); padding: 8px 0;
         }
     </style>
 
     <script>
-        // O corretor de cores precisa ser registrado ANTES da cena carregar
+        // Corretor de cor do KIRI Engine (Ativo e fixado)
         AFRAME.registerComponent('corrigir-cor', {
           init: function () {
             this.el.addEventListener('model-loaded', () => {
@@ -59,9 +43,7 @@
                   if (node.isMesh) {
                     node.material.roughness = 1;
                     node.material.metalness = 0;
-                    if (node.material.map) {
-                      node.material.map.encoding = THREE.sRGBEncoding;
-                    }
+                    if (node.material.map) node.material.map.encoding = THREE.sRGBEncoding;
                     node.material.needsUpdate = true;
                   }
                 });
@@ -73,24 +55,13 @@
 </head>
 <body>
 
-    <div class="instrucao">Use os botões para clarear, girar e deitar a mesa no chão</div>
+    <div class="instrucao">
+        👆 1 Dedo: Mover p/ lados e frente | ✌️ 2 Dedos: Girar e ajustar altura
+    </div>
 
     <video id="webcam" autoplay playsinline></video>
 
-    <div class="painel-controles">
-        <button class="btn-controle" id="giro-esq">🔄 Girar Y-</button>
-        <button class="btn-controle" id="giro-dir">🔄 Girar Y+</button>
-        <button class="btn-controle" id="mais-longe">⬆️ Afastar</button>
-        <button class="btn-controle" id="mais-perto">⬇️ Aproximar</button>
-        
-        <button class="btn-controle" id="subir" style="background-color: #28a745;">🟩 Subir</button>
-        <button class="btn-controle" id="descer" style="background-color: #dc3545;">🟥 Descer</button>
-        
-        <button class="btn-controle" id="Tombar-Frente" style="background-color: #ef8116;">📐 Tombar F.</button>
-        <button class="btn-controle" id="Tombar-Tras" style="background-color: #ef8116;">📐 Tombar T.</button>
-        <button class="btn-controle" id="Injetar-Esq" style="background-color: #7952b3;">📐 Inclinar E.</button>
-        <button class="btn-controle" id="Injetar-Dir" style="background-color: #7952b3;">📐 Inclinar D.</button>
-    </div>
+    <div id="zona-touch"></div>
 
     <a-scene embedded vr-mode-ui="enabled: false">
         <a-entity light="type: ambient; intensity: 1.8;"></a-entity>
@@ -98,7 +69,7 @@
         
         <a-camera position="0 1.6 0" look-controls="enabled: false"></a-camera>
 
-        <a-entity position="0 -0.2 -2.5" rotation="-90 0 0" id="target">
+        <a-entity position="0 -0.4 -2.2" rotation="-90 0 0" id="target">
             <a-gltf-model 
                 src="https://raw.githubusercontent.com/Anonimo5/meu-webar/main/model.glb" 
                 scale="1 1 1"
@@ -108,7 +79,7 @@
     </a-scene>
 
     <script>
-        // Ativação da câmera traseira
+        // Liga a câmera traseira do celular
         const video = document.getElementById('webcam');
         navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } }, audio: false })
         .then(stream => { video.srcObject = stream; })
@@ -116,23 +87,67 @@
             navigator.mediaDevices.getUserMedia({ video: true, audio: false }).then(stream => { video.srcObject = stream; });
         });
 
-        // Configuração lógica dos botões de movimentação e graus (passos de 15 graus)
+        // Lógica Avançada de Toque (Touch)
         const el = document.getElementById('target');
-        const passoGrau = THREE.MathUtils.degToRad(15);
-
-        document.getElementById('giro-esq').addEventListener('click', () => { el.object3D.rotation.y += passoGrau; });
-        document.getElementById('giro-dir').addEventListener('click', () => { el.object3D.rotation.y -= passoGrau; });
+        const zonaTouch = document.getElementById('zona-touch');
         
-        document.getElementById('mais-longe').addEventListener('click', () => { el.object3D.position.z -= 0.15; });
-        document.getElementById('mais-perto').addEventListener('click', () => { el.object3D.position.z += 0.15; });
-        document.getElementById('subir').addEventListener('click', () => { el.object3D.position.y += 0.1; });
-        document.getElementById('descer').addEventListener('click', () => { el.object3D.position.y -= 0.1; });
+        let tpAnterior = []; // Guarda a posição dos dedos no frame anterior
+        let distInicialPinca = 0;
 
-        // Ações dos novos botões de inclinação em graus
-        document.getElementById('Tombar-Frente').addEventListener('click', () => { el.object3D.rotation.x += passoGrau; });
-        document.getElementById('Tombar-Tras').addEventListener('click', () => { el.object3D.rotation.x -= passoGrau; });
-        document.getElementById('Injetar-Esq').addEventListener('click', () => { el.object3D.rotation.z += passoGrau; });
-        document.getElementById('Injetar-Dir').addEventListener('click', () => { el.object3D.rotation.z -= passoGrau; });
+        zonaTouch.addEventListener('touchstart', (e) => {
+            tpAnterior = Array.from(e.touches).map(t => ({ x: t.clientX, y: t.clientY }));
+            if (e.touches.length === 2) {
+                // Calcula a distância inicial entre os dois dedos para a pinça
+                distInicialPinca = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+            }
+        }, { passive: true });
+
+        zonaTouch.addEventListener('touchmove', (e) => {
+            if (!tpAnterior.length) return;
+
+            // CONTROLE COM 1 DEDO: Mover o objeto pelo espaço (Ajuste Fino)
+            if (e.touches.length === 1) {
+                const toque = e.touches[0];
+                const deltaX = toque.clientX - tpAnterior[0].x;
+                const deltaY = toque.clientY - tpAnterior[0].y;
+
+                // Move milimetricamente com base no arrasto do dedo
+                el.object3D.position.x += deltaX * 0.003; 
+                el.object3D.position.z += deltaY * 0.005; 
+
+                tpAnterior[0] = { x: toque.clientX, y: toque.clientY };
+            } 
+            
+            // CONTROLE COM 2 DEDOS: Girar (Y) e Altura (Subir/Descer)
+            else if (e.touches.length === 2) {
+                const t1 = e.touches[0];
+                const t2 = e.touches[1];
+                
+                // 1. Cálculo de Rotação (Girar os dedos como uma chave)
+                const dxAtual = t1.clientX - t2.clientX;
+                const dyAtual = t1.clientY - t2.clientY;
+                const dxAnterior = tpAnterior[0].x - tpAnterior[1].x;
+                const dyAnterior = tpAnterior[0].y - tpAnterior[1].y;
+                
+                const anguloAtual = Math.atan2(dyAtual, dxAtual);
+                const anguloAnterior = Math.atan2(dyAnterior, dxAnterior);
+                let deltaAngulo = anguloAtual - anguloAnterior;
+                
+                el.object3D.rotation.y -= deltaAngulo * 1.2; // Gira o móvel suavemente
+
+                // 2. Cálculo de Pinça (Aproximar/Afastar os dedos para Subir/Descer Altura)
+                const distAtualPinca = Math.hypot(dxAtual, dyAtual);
+                const deltaPinca = distAtualPinca - distInicialPinca;
+                
+                el.object3D.position.y += deltaPinca * 0.002; // Sobe ou desce a mesa de forma fina
+
+                distInicialPinca = distAtualPinca;
+                tpAnterior[0] = { x: t1.clientX, y: t1.clientY };
+                tpAnterior[1] = { x: t2.clientX, y: t2.clientY };
+            }
+        }, { passive: true });
+
+        zonaTouch.addEventListener('touchend', () => { tpAnterior = []; });
     </script>
 </body>
 </html>
