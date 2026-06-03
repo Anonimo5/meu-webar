@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visualizador de Móveis - Sem Marcador Seguro</title>
+    <title>Visualizador de Móveis - Controle Total</title>
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; background-color: #000; }
         
-        /* Força a câmera nativa a ocupar o fundo da tela inteira */
         #webcam {
             position: fixed;
             top: 0; left: 0;
@@ -18,7 +17,6 @@
             z-index: 1;
         }
 
-        /* O motor 3D fica flutuando transparente por cima do vídeo */
         a-scene {
             position: absolute;
             top: 0; left: 0;
@@ -26,50 +24,81 @@
             z-index: 2;
         }
         
+        /* Painel ajustado para caber os novos botões de graus */
         .painel-controles {
             position: fixed;
-            bottom: 20px; left: 50%;
+            bottom: 15px; left: 50%;
             transform: translateX(-50%);
-            display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;
             z-index: 999;
-            background: rgba(0, 0, 0, 0.75);
-            padding: 10px; border-radius: 12px; width: 90%; max-width: 380px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px; border-radius: 12px; width: 95%; max-width: 440px;
         }
         .btn-controle {
-            background: #007bff; color: white; border: none; padding: 12px;
-            border-radius: 6px; font-size: 13px; font-weight: bold;
-            flex: 1 1 40%; min-width: 90px;
+            background: #007bff; color: white; border: none; padding: 10px 6px;
+            border-radius: 6px; font-size: 11px; font-weight: bold;
+            flex: 1 1 22%; min-width: 85px; text-align: center;
         }
         .btn-controle:active { background: #0056b3; }
+        
         .instrucao {
             position: fixed; top: 15px; width: 100%; text-align: center;
             color: white; text-shadow: 1px 1px 4px black; font-size: 14px;
             z-index: 999; pointer-events: none;
         }
     </style>
+
+    <script>
+        // O corretor de cores precisa ser registrado ANTES da cena carregar
+        AFRAME.registerComponent('corrigir-cor', {
+          init: function () {
+            this.el.addEventListener('model-loaded', () => {
+              const mesh = this.el.getObject3D('mesh');
+              if (mesh) {
+                mesh.traverse((node) => {
+                  if (node.isMesh) {
+                    node.material.roughness = 1;
+                    node.material.metalness = 0;
+                    if (node.material.map) {
+                      node.material.map.encoding = THREE.sRGBEncoding;
+                    }
+                    node.material.needsUpdate = true;
+                  }
+                });
+              }
+            });
+          }
+        });
+    </script>
 </head>
 <body>
 
-    <div class="instrucao">Ajuste o móvel no seu chão usando os botões abaixo</div>
+    <div class="instrucao">Use os botões para clarear, girar e deitar a mesa no chão</div>
 
     <video id="webcam" autoplay playsinline></video>
 
     <div class="painel-controles">
-        <button class="btn-controle" id="giro-esq">🔄 Girar Esq.</button>
-        <button class="btn-controle" id="giro-dir">🔄 Girar Dir.</button>
+        <button class="btn-controle" id="giro-esq">🔄 Girar Y-</button>
+        <button class="btn-controle" id="giro-dir">🔄 Girar Y+</button>
         <button class="btn-controle" id="mais-longe">⬆️ Afastar</button>
         <button class="btn-controle" id="mais-perto">⬇️ Aproximar</button>
+        
         <button class="btn-controle" id="subir" style="background-color: #28a745;">🟩 Subir</button>
         <button class="btn-controle" id="descer" style="background-color: #dc3545;">🟥 Descer</button>
+        
+        <button class="btn-controle" id="Tombar-Frente" style="background-color: #ef8116;">📐 Tombar F.</button>
+        <button class="btn-controle" id="Tombar-Tras" style="background-color: #ef8116;">📐 Tombar T.</button>
+        <button class="btn-controle" id="Injetar-Esq" style="background-color: #7952b3;">📐 Inclinar E.</button>
+        <button class="btn-controle" id="Injetar-Dir" style="background-color: #7952b3;">📐 Inclinar D.</button>
     </div>
 
     <a-scene embedded vr-mode-ui="enabled: false">
-        <a-entity light="type: ambient; intensity: 1.6;"></a-entity>
-        <a-entity light="type: directional; intensity: 1.3; position: 1 4 2;"></a-entity>
+        <a-entity light="type: ambient; intensity: 1.8;"></a-entity>
+        <a-entity light="type: directional; intensity: 1.5; position: 1 4 3;"></a-entity>
         
         <a-camera position="0 1.6 0" look-controls="enabled: false"></a-camera>
 
-        <a-entity position="0 -0.5 -2.5" rotation="-90 0 0" id="target">
+        <a-entity position="0 -0.2 -2.5" rotation="-90 0 0" id="target">
             <a-gltf-model 
                 src="https://raw.githubusercontent.com/Anonimo5/meu-webar/main/model.glb" 
                 scale="1 1 1"
@@ -79,44 +108,31 @@
     </a-scene>
 
     <script>
-        // Script simples para abrir a câmera traseira do celular
+        // Ativação da câmera traseira
         const video = document.getElementById('webcam');
-        navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: { exact: "environment" } }, 
-            audio: false 
-        })
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } }, audio: false })
         .then(stream => { video.srcObject = stream; })
         .catch(err => {
-            // Se falhar (ex: no PC que não tem câmera traseira), tenta qualquer câmera disponível
-            navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-            .then(stream => { video.srcObject = stream; });
+            navigator.mediaDevices.getUserMedia({ video: true, audio: false }).then(stream => { video.srcObject = stream; });
         });
 
-        // Configuração dos Botões de Ajuste Manual
+        // Configuração lógica dos botões de movimentação e graus (passos de 15 graus)
         const el = document.getElementById('target');
-        document.getElementById('giro-esq').addEventListener('click', () => { el.object3D.rotation.y += 0.2; });
-        document.getElementById('giro-dir').addEventListener('click', () => { el.object3D.rotation.y -= 0.2; });
-        document.getElementById('mais-longe').addEventListener('click', () => { el.object3D.position.z -= 0.2; });
-        document.getElementById('mais-perto').addEventListener('click', () => { el.object3D.position.z += 0.2; });
+        const passoGrau = THREE.MathUtils.degToRad(15);
+
+        document.getElementById('giro-esq').addEventListener('click', () => { el.object3D.rotation.y += passoGrau; });
+        document.getElementById('giro-dir').addEventListener('click', () => { el.object3D.rotation.y -= passoGrau; });
+        
+        document.getElementById('mais-longe').addEventListener('click', () => { el.object3D.position.z -= 0.15; });
+        document.getElementById('mais-perto').addEventListener('click', () => { el.object3D.position.z += 0.15; });
         document.getElementById('subir').addEventListener('click', () => { el.object3D.position.y += 0.1; });
         document.getElementById('descer').addEventListener('click', () => { el.object3D.position.y -= 0.1; });
 
-        // Ajuste de cores do KIRI
-        AFRAME.registerComponent('corrigir-cor', {
-          init: function () {
-            this.el.addEventListener('model-loaded', () => {
-              const mesh = this.el.getObject3D('mesh');
-              mesh.traverse((node) => {
-                if (node.isMesh) {
-                  node.material.roughness = 1;
-                  node.material.metalness = 0;
-                  if (node.material.map) node.material.map.encoding = THREE.sRGBEncoding;
-                  node.material.needsUpdate = true;
-                }
-              });
-            });
-          }
-        });
+        // Ações dos novos botões de inclinação em graus
+        document.getElementById('Tombar-Frente').addEventListener('click', () => { el.object3D.rotation.x += passoGrau; });
+        document.getElementById('Tombar-Tras').addEventListener('click', () => { el.object3D.rotation.x -= passoGrau; });
+        document.getElementById('Injetar-Esq').addEventListener('click', () => { el.object3D.rotation.z += passoGrau; });
+        document.getElementById('Injetar-Dir').addEventListener('click', () => { el.object3D.rotation.z -= passoGrau; });
     </script>
 </body>
 </html>
