@@ -1,117 +1,137 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>Visualizador de Móveis - No Chão</title>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador de Móveis - Controle Manual</title>
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.5/dist/mindar-aframe-prod.js"></script>
     
     <style>
-      body { margin: 0; overflow: hidden; font-family: sans-serif; }
-      /* Estilo dos botões de controle na tela */
-      .painel-controles {
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        display: flex;
-        gap: 10px;
-        z-index: 999;
-        background: rgba(0, 0, 0, 0.6);
-        padding: 10px;
-        border-radius: 8px;
-      }
-      .btn-controle {
-        background: #007bff;
-        color: white;
-        border: none;
-        padding: 12px 16px;
-        border-radius: 4px;
-        font-size: 14px;
-        font-weight: bold;
-        cursor: pointer;
-      }
-      .btn-controle:active { background: #0056b3; }
-      .instrucao {
-        position: fixed;
-        top: 20px;
-        width: 100%;
-        text-align: center;
-        color: white;
-        text-shadow: 1px 1px 4px black;
-        font-size: 16px;
-        z-index: 999;
-        pointer-events: none;
-      }
+        body { margin: 0; overflow: hidden; font-family: sans-serif; }
+        
+        /* Painel de botões flutuantes na tela */
+        .painel-controles {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            z-index: 999;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 12px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+        }
+        .btn-controle {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            flex: 1 1 40%;
+            min-width: 100px;
+        }
+        .btn-controle:active { background: #0056b3; }
+        
+        .instrucao {
+            position: fixed;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            text-shadow: 1px 1px 4px black;
+            font-size: 15px;
+            z-index: 999;
+            pointer-events: none;
+        }
     </style>
 
     <script>
-      // Componente para controlar o objeto via botões na tela
-      AFRAME.registerComponent('controle-movel', {
-        init: function () {
-          const el = this.el;
-          
-          // Botões de rotação
-          document.getElementById('giro-esq').addEventListener('click', () => {
-            el.object3D.rotation.y += THREE.MathUtils.degToRad(15);
-          });
-          document.getElementById('giro-dir').addEventListener('click', () => {
-            el.object3D.rotation.y -= THREE.MathUtils.degToRad(15);
-          });
-          
-          // Botões de distância (Ajuste fino de profundidade)
-          document.getElementById('mais-perto').addEventListener('click', () => {
-            el.object3D.position.z += 0.2;
-          });
-          document.getElementById('mais-longe').addEventListener('click', () => {
-            el.object3D.position.z -= 0.2;
-          });
-        }
-      });
+        // Sistema de controle dos botões adaptado para o MindAR
+        AFRAME.registerComponent('joystick-movel', {
+            init: function () {
+                const el = this.el;
+                
+                // Controles de Rotação (Girar o móvel no próprio eixo)
+                document.getElementById('giro-esq').addEventListener('click', () => {
+                    el.object3D.rotation.y += THREE.MathUtils.degToRad(15);
+                });
+                document.getElementById('giro-dir').addEventListener('click', () => {
+                    el.object3D.rotation.y -= THREE.MathUtils.degToRad(15);
+                });
+                
+                // Controles de Profundidade (Empurrar para frente ou trazer para perto)
+                document.getElementById('mais-longe').addEventListener('click', () => {
+                    el.object3D.position.z -= 0.25;
+                });
+                document.getElementById('mais-perto').addEventListener('click', () => {
+                    el.object3D.position.z += 0.25;
+                });
 
-      // Script para corrigir a iluminação e as cores reais do KIRI
-      AFRAME.registerComponent('corrigir-cor', {
-        init: function () {
-          this.el.addEventListener('model-loaded', () => {
-            const mesh = this.el.getObject3D('mesh');
-            mesh.traverse((node) => {
-              if (node.isMesh) {
-                node.material.roughness = 1;
-                node.material.metalness = 0;
-                if (node.material.map) node.material.map.encoding = THREE.sRGBEncoding;
-                node.material.needsUpdate = true;
-              }
+                // Controles de Altura (Subir ou descer o móvel para colar no chão real)
+                document.getElementById('subir').addEventListener('click', () => {
+                    el.object3D.position.y += 0.15;
+                });
+                document.getElementById('descer').addEventListener('click', () => {
+                    el.object3D.position.y -= 0.15;
+                });
+            }
+        });
+
+        // Corretor de cor para o formato do KIRI Engine
+        AFRAME.registerComponent('corrigir-cor', {
+          init: function () {
+            this.el.addEventListener('model-loaded', () => {
+              const mesh = this.el.getObject3D('mesh');
+              mesh.traverse((node) => {
+                if (node.isMesh) {
+                  node.material.roughness = 1;
+                  node.material.metalness = 0;
+                  if (node.material.map) node.material.map.encoding = THREE.sRGBEncoding;
+                  node.material.needsUpdate = true;
+                }
+              });
             });
-          });
-        }
-      });
+          }
+        });
     </script>
-  </head>
+</head>
+<body>
 
-  <body>
-    <div class="instrucao">Aponte para o chão e use os botões para ajustar o móvel</div>
+    <div class="instrucao">Mire no chão e use os controles para posicionar a mesa</div>
 
     <div class="painel-controles">
-      <button class="btn-controle" id="giro-esq">🔄 Girar Esq.</button>
-      <button class="btn-controle" id="giro-dir">🔄 Girar Dir.</button>
-      <button class="btn-controle" id="mais-longe">⬆️ Afastar</button>
-      <button class="btn-controle" id="mais-perto">⬇️ Aproximar</button>
+        <button class="btn-controle" id="giro-esq">🔄 Girar Esq.</button>
+        <button class="btn-controle" id="giro-dir">🔄 Girar Dir.</button>
+        <button class="btn-controle" id="mais-longe">⬆️ Afastar</button>
+        <button class="btn-controle" id="mais-perto">⬇️ Aproximar</button>
+        <button class="btn-controle" id="subir" style="background-color: #28a745;">🟩 Subir</button>
+        <button class="btn-controle" id="descer" style="background-color: #dc3545;">🟥 Descer</button>
     </div>
 
-    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;" renderer="colorManagement: true;" vr-mode-ui="enabled: false">
-      
-      <a-entity light="type: ambient; intensity: 1.8;"></a-entity>
-      <a-entity light="type: directional; intensity: 1.5; position: 1 4 3;"></a-entity>
-      
-      <a-entity id="grupo-modelo" position="0 -1 -2.5" controle-movel>
-        <a-gltf-model 
-          src="https://raw.githubusercontent.com/Anonimo5/meu-webar/main/model.glb" 
-          scale="1 1 1"
-          corrigir-cor>
-        </a-gltf-model>
-      </a-entity>
-      
-      <a-entity camera></a-entity>
+    <a-scene mindar-face embedded renderer="colorManagement: true;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+        
+        <a-entity light="type: ambient; intensity: 1.6;"></a-entity>
+        <a-entity light="type: directional; intensity: 1.3; position: 1 4 2;"></a-entity>
+        
+        <a-camera active="true" position="0 1.6 0" look-controls="enabled: false"></a-camera>
+
+        <a-entity position="0 -0.5 -2" rotation="-90 0 0" id="target" joystick-movel>
+            <a-gltf-model 
+                src="https://raw.githubusercontent.com/Anonimo5/meu-webar/main/model.glb" 
+                scale="1 1 1"
+                corrigir-cor>
+            </a-gltf-model>
+        </a-entity>
     </a-scene>
-  </body>
+
+</body>
 </html>
