@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Visualizador de Móveis - Touch Pro</title>
+    <title>Visualizador de Móveis - Touch Corrigido</title>
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     
     <style>
@@ -21,19 +21,18 @@
             position: absolute;
             top: 0; left: 0;
             width: 100%; height: 100%;
-            z-index: 999; /* Fica por cima de tudo para capturar os dedos */
+            z-index: 999;
         }
         
         .instrucao {
             position: fixed; top: 20px; width: 100%; text-align: center;
-            color: white; text-shadow: 1px 1px 4px black; font-size: 14px;
+            color: white; text-shadow: 1px 1px 4px black; font-size: 13px;
             z-index: 1000; pointer-events: none;
-            background: rgba(0,0,0,0.4); padding: 8px 0;
+            background: rgba(0,0,0,0.5); padding: 8px 0;
         }
     </style>
 
     <script>
-        // Corretor de cor do KIRI Engine (Ativo e fixado)
         AFRAME.registerComponent('corrigir-cor', {
           init: function () {
             this.el.addEventListener('model-loaded', () => {
@@ -56,11 +55,10 @@
 <body>
 
     <div class="instrucao">
-        👆 1 Dedo: Mover p/ lados e frente | ✌️ 2 Dedos: Girar e ajustar altura
+        👆 1 Dedo: Mover (Frente/Lados) | ✌️ 2 Dedos: Girar, Inclinar e Altura
     </div>
 
     <video id="webcam" autoplay playsinline></video>
-
     <div id="zona-touch"></div>
 
     <a-scene embedded vr-mode-ui="enabled: false">
@@ -69,7 +67,7 @@
         
         <a-camera position="0 1.6 0" look-controls="enabled: false"></a-camera>
 
-        <a-entity position="0 -0.4 -2.2" rotation="-90 0 0" id="target">
+        <a-entity position="0 0.2 -2.0" rotation="0 0 0" id="target">
             <a-gltf-model 
                 src="https://raw.githubusercontent.com/Anonimo5/meu-webar/main/model.glb" 
                 scale="1 1 1"
@@ -79,7 +77,6 @@
     </a-scene>
 
     <script>
-        // Liga a câmera traseira do celular
         const video = document.getElementById('webcam');
         navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } }, audio: false })
         .then(stream => { video.srcObject = stream; })
@@ -87,17 +84,15 @@
             navigator.mediaDevices.getUserMedia({ video: true, audio: false }).then(stream => { video.srcObject = stream; });
         });
 
-        // Lógica Avançada de Toque (Touch)
         const el = document.getElementById('target');
         const zonaTouch = document.getElementById('zona-touch');
         
-        let tpAnterior = []; // Guarda a posição dos dedos no frame anterior
+        let tpAnterior = [];
         let distInicialPinca = 0;
 
         zonaTouch.addEventListener('touchstart', (e) => {
             tpAnterior = Array.from(e.touches).map(t => ({ x: t.clientX, y: t.clientY }));
             if (e.touches.length === 2) {
-                // Calcula a distância inicial entre os dois dedos para a pinça
                 distInicialPinca = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
             }
         }, { passive: true });
@@ -105,41 +100,43 @@
         zonaTouch.addEventListener('touchmove', (e) => {
             if (!tpAnterior.length) return;
 
-            // CONTROLE COM 1 DEDO: Mover o objeto pelo espaço (Ajuste Fino)
+            // 1 DEDO: Deslocamento suave pelas coordenadas X e Z
             if (e.touches.length === 1) {
                 const toque = e.touches[0];
                 const deltaX = toque.clientX - tpAnterior[0].x;
                 const deltaY = toque.clientY - tpAnterior[0].y;
 
-                // Move milimetricamente com base no arrasto do dedo
-                el.object3D.position.x += deltaX * 0.003; 
-                el.object3D.position.z += deltaY * 0.005; 
+                el.object3D.position.x += deltaX * 0.004; 
+                el.object3D.position.z += deltaY * 0.006; 
 
                 tpAnterior[0] = { x: toque.clientX, y: toque.clientY };
             } 
             
-            // CONTROLE COM 2 DEDOS: Girar (Y) e Altura (Subir/Descer)
+            // 2 DEDOS: Controles combinados de rotação, inclinação e altura
             else if (e.touches.length === 2) {
                 const t1 = e.touches[0];
                 const t2 = e.touches[1];
                 
-                // 1. Cálculo de Rotação (Girar os dedos como uma chave)
                 const dxAtual = t1.clientX - t2.clientX;
                 const dyAtual = t1.clientY - t2.clientY;
                 const dxAnterior = tpAnterior[0].x - tpAnterior[1].x;
                 const dyAnterior = tpAnterior[0].y - tpAnterior[1].y;
                 
+                // Gira o objeto no eixo vertical (Y)
                 const anguloAtual = Math.atan2(dyAtual, dxAtual);
                 const anguloAnterior = Math.atan2(dyAnterior, dxAnterior);
-                let deltaAngulo = anguloAtual - anguloAnterior;
-                
-                el.object3D.rotation.y -= deltaAngulo * 1.2; // Gira o móvel suavemente
+                el.object3D.rotation.y -= (anguloAtual - anguloAnterior) * 1.2;
 
-                // 2. Cálculo de Pinça (Aproximar/Afastar os dedos para Subir/Descer Altura)
+                // Move os dois dedos juntos para cima/baixo para TOMBAR (Inclinar em X)
+                const centroYAtual = (t1.clientY + t2.clientY) / 2;
+                const centroYAnterior = (tpAnterior[0].y + tpAnterior[1].y) / 2;
+                const deltaSubidaCen = centroYAtual - centroYAnterior;
+                el.object3D.rotation.x += deltaSubidaCen * 0.005;
+
+                // Movimento de pinça para ajustar ALTURA (Subir/Descer em Y)
                 const distAtualPinca = Math.hypot(dxAtual, dyAtual);
                 const deltaPinca = distAtualPinca - distInicialPinca;
-                
-                el.object3D.position.y += deltaPinca * 0.002; // Sobe ou desce a mesa de forma fina
+                el.object3D.position.y += deltaPinca * 0.003;
 
                 distInicialPinca = distAtualPinca;
                 tpAnterior[0] = { x: t1.clientX, y: t1.clientY };
