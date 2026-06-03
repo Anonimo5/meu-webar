@@ -3,90 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visualizador de Móveis - Controle Manual</title>
+    <title>Visualizador de Móveis - Sem Marcador Seguro</title>
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.5/dist/mindar-aframe-prod.js"></script>
     
     <style>
-        body { margin: 0; overflow: hidden; font-family: sans-serif; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; background-color: #000; }
         
-        /* Painel de botões flutuantes na tela */
+        /* Força a câmera nativa a ocupar o fundo da tela inteira */
+        #webcam {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
+            z-index: 1;
+        }
+
+        /* O motor 3D fica flutuando transparente por cima do vídeo */
+        a-scene {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 2;
+        }
+        
         .painel-controles {
             position: fixed;
-            bottom: 20px;
-            left: 50%;
+            bottom: 20px; left: 50%;
             transform: translateX(-50%);
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 10px;
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;
             z-index: 999;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 12px;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 400px;
+            background: rgba(0, 0, 0, 0.75);
+            padding: 10px; border-radius: 12px; width: 90%; max-width: 380px;
         }
         .btn-controle {
-            background: #007bff;
-            color: white;
-            border: none;
-            padding: 12px 14px;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: bold;
-            cursor: pointer;
-            flex: 1 1 40%;
-            min-width: 100px;
+            background: #007bff; color: white; border: none; padding: 12px;
+            border-radius: 6px; font-size: 13px; font-weight: bold;
+            flex: 1 1 40%; min-width: 90px;
         }
         .btn-controle:active { background: #0056b3; }
-        
         .instrucao {
-            position: fixed;
-            top: 20px;
-            width: 100%;
-            text-align: center;
-            color: white;
-            text-shadow: 1px 1px 4px black;
-            font-size: 15px;
-            z-index: 999;
-            pointer-events: none;
+            position: fixed; top: 15px; width: 100%; text-align: center;
+            color: white; text-shadow: 1px 1px 4px black; font-size: 14px;
+            z-index: 999; pointer-events: none;
         }
     </style>
+</head>
+<body>
+
+    <div class="instrucao">Ajuste o móvel no seu chão usando os botões abaixo</div>
+
+    <video id="webcam" autoplay playsinline></video>
+
+    <div class="painel-controles">
+        <button class="btn-controle" id="giro-esq">🔄 Girar Esq.</button>
+        <button class="btn-controle" id="giro-dir">🔄 Girar Dir.</button>
+        <button class="btn-controle" id="mais-longe">⬆️ Afastar</button>
+        <button class="btn-controle" id="mais-perto">⬇️ Aproximar</button>
+        <button class="btn-controle" id="subir" style="background-color: #28a745;">🟩 Subir</button>
+        <button class="btn-controle" id="descer" style="background-color: #dc3545;">🟥 Descer</button>
+    </div>
+
+    <a-scene embedded vr-mode-ui="enabled: false">
+        <a-entity light="type: ambient; intensity: 1.6;"></a-entity>
+        <a-entity light="type: directional; intensity: 1.3; position: 1 4 2;"></a-entity>
+        
+        <a-camera position="0 1.6 0" look-controls="enabled: false"></a-camera>
+
+        <a-entity position="0 -0.5 -2.5" rotation="-90 0 0" id="target">
+            <a-gltf-model 
+                src="https://raw.githubusercontent.com/Anonimo5/meu-webar/main/model.glb" 
+                scale="1 1 1"
+                corrigir-cor>
+            </a-gltf-model>
+        </a-entity>
+    </a-scene>
 
     <script>
-        // Sistema de controle dos botões adaptado para o MindAR
-        AFRAME.registerComponent('joystick-movel', {
-            init: function () {
-                const el = this.el;
-                
-                // Controles de Rotação (Girar o móvel no próprio eixo)
-                document.getElementById('giro-esq').addEventListener('click', () => {
-                    el.object3D.rotation.y += THREE.MathUtils.degToRad(15);
-                });
-                document.getElementById('giro-dir').addEventListener('click', () => {
-                    el.object3D.rotation.y -= THREE.MathUtils.degToRad(15);
-                });
-                
-                // Controles de Profundidade (Empurrar para frente ou trazer para perto)
-                document.getElementById('mais-longe').addEventListener('click', () => {
-                    el.object3D.position.z -= 0.25;
-                });
-                document.getElementById('mais-perto').addEventListener('click', () => {
-                    el.object3D.position.z += 0.25;
-                });
-
-                // Controles de Altura (Subir ou descer o móvel para colar no chão real)
-                document.getElementById('subir').addEventListener('click', () => {
-                    el.object3D.position.y += 0.15;
-                });
-                document.getElementById('descer').addEventListener('click', () => {
-                    el.object3D.position.y -= 0.15;
-                });
-            }
+        // Script simples para abrir a câmera traseira do celular
+        const video = document.getElementById('webcam');
+        navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: { exact: "environment" } }, 
+            audio: false 
+        })
+        .then(stream => { video.srcObject = stream; })
+        .catch(err => {
+            // Se falhar (ex: no PC que não tem câmera traseira), tenta qualquer câmera disponível
+            navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+            .then(stream => { video.srcObject = stream; });
         });
 
-        // Corretor de cor para o formato do KIRI Engine
+        // Configuração dos Botões de Ajuste Manual
+        const el = document.getElementById('target');
+        document.getElementById('giro-esq').addEventListener('click', () => { el.object3D.rotation.y += 0.2; });
+        document.getElementById('giro-dir').addEventListener('click', () => { el.object3D.rotation.y -= 0.2; });
+        document.getElementById('mais-longe').addEventListener('click', () => { el.object3D.position.z -= 0.2; });
+        document.getElementById('mais-perto').addEventListener('click', () => { el.object3D.position.z += 0.2; });
+        document.getElementById('subir').addEventListener('click', () => { el.object3D.position.y += 0.1; });
+        document.getElementById('descer').addEventListener('click', () => { el.object3D.position.y -= 0.1; });
+
+        // Ajuste de cores do KIRI
         AFRAME.registerComponent('corrigir-cor', {
           init: function () {
             this.el.addEventListener('model-loaded', () => {
@@ -103,35 +118,5 @@
           }
         });
     </script>
-</head>
-<body>
-
-    <div class="instrucao">Mire no chão e use os controles para posicionar a mesa</div>
-
-    <div class="painel-controles">
-        <button class="btn-controle" id="giro-esq">🔄 Girar Esq.</button>
-        <button class="btn-controle" id="giro-dir">🔄 Girar Dir.</button>
-        <button class="btn-controle" id="mais-longe">⬆️ Afastar</button>
-        <button class="btn-controle" id="mais-perto">⬇️ Aproximar</button>
-        <button class="btn-controle" id="subir" style="background-color: #28a745;">🟩 Subir</button>
-        <button class="btn-controle" id="descer" style="background-color: #dc3545;">🟥 Descer</button>
-    </div>
-
-    <a-scene mindar-face embedded renderer="colorManagement: true;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
-        
-        <a-entity light="type: ambient; intensity: 1.6;"></a-entity>
-        <a-entity light="type: directional; intensity: 1.3; position: 1 4 2;"></a-entity>
-        
-        <a-camera active="true" position="0 1.6 0" look-controls="enabled: false"></a-camera>
-
-        <a-entity position="0 -0.5 -2" rotation="-90 0 0" id="target" joystick-movel>
-            <a-gltf-model 
-                src="https://raw.githubusercontent.com/Anonimo5/meu-webar/main/model.glb" 
-                scale="1 1 1"
-                corrigir-cor>
-            </a-gltf-model>
-        </a-entity>
-    </a-scene>
-
 </body>
 </html>
