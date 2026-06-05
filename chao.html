@@ -3,14 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Visualizador Pró - Correção de Spawn</title>
+    <title>Teste Direto Sem Erros</title>
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; background-color: #000; user-select: none; }
         #webcam { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
-        #zona-touch { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 999; }
-        
         .instrucao { 
             position: fixed; top: 20px; width: 100%; text-align: center; 
             color: white; text-shadow: 1px 1px 4px black; font-size: 14px; 
@@ -19,15 +17,15 @@
     </style>
 
     <script>
-        // Componente para garantir mapeamento de cores e sombras do KIRI
         AFRAME.registerComponent('configurar-objeto', {
           init: function () {
             this.el.addEventListener('model-loaded', () => {
+              console.log("MÓVEL CARREGOU COM SUCESSO NO NAVEGADOR!");
               const mesh = this.el.getObject3D('mesh');
               if (mesh) {
                 mesh.traverse((node) => {
                   if (node.isMesh) {
-                    node.material.roughness = 0.7;
+                    node.material.roughness = 0.8;
                     node.material.metalness = 0.1;
                     if (node.material.map) node.material.map.encoding = THREE.sRGBEncoding;
                     node.castShadow = true;
@@ -37,6 +35,9 @@
                 });
               }
             });
+            this.el.addEventListener('model-error', (e) => {
+              console.error("ERRO AO BAIXAR O GLB DO GITHUB:", e);
+            });
           }
         });
     </script>
@@ -44,92 +45,61 @@
 <body>
 
     <div class="instrucao">
-        Mova o celular para alinhar a mira azul no chão e toque para fixar o móvel!
+        TESTE FORÇADO: O vaso deve aparecer fixo na sua frente em 5 segundos!
     </div>
 
     <video id="webcam" autoplay playsinline></video>
-    <div id="zona-touch"></div>
 
-    <a-scene embedded vr-mode-ui="enabled: false" shadow="type: pcfsoft">
+    <a-scene embedded vr-mode-ui="enabled: false" shadow="type: pcfsoft" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5;">
         
         <a-assets>
-            <a-asset-item id="modelo-moveu" src="https://raw.githubusercontent.com/Anonimo5/meu-webar/main/model.glb"></a-asset-item>
+            <a-asset-item id="modelo-moveu" src="https://raw.githubusercontent.com/Anonimo5/meu-webar/main/model.glb?v=2"></a-asset-item>
         </a-assets>
 
-        <a-entity light="type: ambient; intensity: 1.5;"></a-entity>
-        <a-entity light="type: directional; intensity: 1.2; castShadow: true; shadowMapHeight: 1024; shadowMapWidth: 1024;" position="1 4 1"></a-entity>
+        <a-entity light="type: ambient; intensity: 1.6;"></a-entity>
+        <a-entity light="type: directional; intensity: 1.3; castShadow: true;" position="1 4 1"></a-entity>
         
         <a-camera position="0 1.6 0" look-controls="enabled: false"></a-camera>
 
-        <a-entity position="0 -0.5 -2.0" id="mira-mapeamento">
-            <a-ring color="#00d2ff" radius-inner="0.22" radius-outer="0.25" rotation="-90 0 0" material="opacity: 0.8; transparent: true"></a-ring>
-            <a-circle color="#00d2ff" radius="0.03" rotation="-90 0 0" material="opacity: 0.6; transparent: true"></a-circle>
-        </a-entity>
-
-        <a-entity position="0 -100 -5" rotation="0 0 0" id="movel-grupo">
-            
+        <a-entity position="0 0.2 -2.0" rotation="0 0 0" id="target">
             <a-gltf-model 
                 src="#modelo-moveu" 
                 scale="1 1 1"
                 configurar-objeto>
             </a-gltf-model>
 
-            <a-plane position="0 -0.01 0" rotation="-90 0 0" width="4" height="4" shadow="receive: true" material="shadowOnly: true; opacity: 0.5;"></a-plane>
-            
+            <a-plane position="0 -0.01 0" rotation="-90 0 0" width="3" height="3" shadow="receive: true" material="shadowOnly: true; opacity: 0.6;"></a-plane>
         </a-entity>
+
     </a-scene>
 
     <script>
-        // Inicialização da câmera traseira do dispositivo
+        // Inicialização da câmera traseira
         const video = document.getElementById('webcam');
         navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } }, audio: false })
         .then(stream => { video.srcObject = stream; })
         .catch(err => { navigator.mediaDevices.getUserMedia({ video: true, audio: false }).then(stream => { video.srcObject = stream; }); });
 
-        const mira = document.getElementById('mira-mapeamento');
-        const movelGrupo = document.getElementById('movel-grupo');
-        const zonaTouch = document.getElementById('zona-touch');
-        
-        let objetoColocado = false;
-        let tpAnterior = [];
+        // ROTAÇÃO DE 1 DEDO DIRETO NA TELA PARA TESTAR SE ELE GIRA
+        const el = document.getElementById('target');
+        let xAnterior = 0;
+        let dynamicTouch = false;
 
-        // Ao clicar, teleportamos o modelo 3D para a posição exata da mira holográfica
-        zonaTouch.addEventListener('click', () => {
-            if (!objetoColocado) {
-                // Posiciona o móvel exatamente onde a mira azul está apontando
-                movelGrupo.setAttribute('position', '0 -0.5 -2.0');
-                
-                // Esconde a mira azul do scanner, igual ao vídeo original
-                mira.setAttribute('visible', 'false');
-                objetoColocado = true;
-                
-                document.querySelector('.instrucao').innerText = "🛋️ Móvel fixado! Gire com 2 dedos na tela.";
-            }
-        });
-
-        // Controle de rotação nativo (Touch com 2 Dedos)
-        zonaTouch.addEventListener('touchstart', (e) => {
-            tpAnterior = Array.from(e.touches).map(t => ({ x: t.clientX, y: t.clientY }));
-        }, { passive: true });
-
-        zonaTouch.addEventListener('touchmove', (e) => {
-            if (!tpAnterior.length || !objetoColocado) return;
-
-            if (e.touches.length === 2) {
-                const t1 = e.touches[0]; const t2 = e.touches[1];
-                const dxAtual = t1.clientX - t2.clientX; const dyAtual = t1.clientY - t2.clientY;
-                
-                const anguloAtual = Math.atan2(dyAtual, dxAtual);
-                const anguloAnterior = Math.atan2(tpAnterior[0].y - tpAnterior[1].y, tpAnterior[0].x - tpAnterior[1].x);
-                
-                movelGrupo.object3D.rotation.y -= (anguloAtual - anguloAnterior) * 1.5;
-                
-                tpAnterior[0] = { x: t1.clientX, y: t1.clientY }; 
-                tpAnterior[1] = { x: t2.clientX, y: t2.clientY };
+        window.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                xAnterior = e.touches[0].clientX;
+                dynamicTouch = true;
             }
         }, { passive: true });
 
-        zonaTouch.addEventListener('touchend', () => { tpAnterior = []; });
+        window.addEventListener('touchmove', (e) => {
+            if (!dynamicTouch || e.touches.length !== 1) return;
+            const deltaX = e.touches[0].clientX - xAnterior;
+            el.object3D.rotation.y += deltaX * 0.01;
+            xAnterior = e.touches[0].clientX;
+        }, { passive: true });
+
+        window.addEventListener('touchend', () => { dynamicTouch = false; });
     </script>
 </body>
 </html>
