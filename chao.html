@@ -3,46 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Visualizador de Móveis - Touch Corrigido</title>
+    <title>Visualizador Pró - Estilo Aplicação</title>
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; background-color: #000; user-select: none; }
+        #webcam { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
+        #zona-touch { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 999; }
         
-        #webcam {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            object-fit: cover;
-            z-index: 1;
-        }
-
-        #zona-touch {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            z-index: 999;
-        }
-        
-        .instrucao {
-            position: fixed; top: 20px; width: 100%; text-align: center;
-            color: white; text-shadow: 1px 1px 4px black; font-size: 13px;
-            z-index: 1000; pointer-events: none;
-            background: rgba(0,0,0,0.5); padding: 8px 0;
+        .instrucao { 
+            position: fixed; top: 20px; width: 100%; text-align: center; 
+            color: white; text-shadow: 1px 1px 4px black; font-size: 14px; 
+            z-index: 1000; pointer-events: none; background: rgba(0,0,0,0.6); padding: 10px 0; 
         }
     </style>
 
     <script>
-        AFRAME.registerComponent('corrigir-cor', {
+        // Corretor de cor e sombras automáticas para o modelo do KIRI
+        AFRAME.registerComponent('configurar-objeto', {
           init: function () {
             this.el.addEventListener('model-loaded', () => {
               const mesh = this.el.getObject3D('mesh');
               if (mesh) {
                 mesh.traverse((node) => {
                   if (node.isMesh) {
-                    node.material.roughness = 1;
-                    node.material.metalness = 0;
+                    node.material.roughness = 0.7;
+                    node.material.metalness = 0.1;
                     if (node.material.map) node.material.map.encoding = THREE.sRGBEncoding;
+                    node.castShadow = true;
+                    node.receiveShadow = true;
                     node.material.needsUpdate = true;
                   }
                 });
@@ -55,91 +44,85 @@
 <body>
 
     <div class="instrucao">
-        👆 1 Dedo: Mover (Frente/Lados) | ✌️ 2 Dedos: Girar, Inclinar e Altura
+        Mova o telemóvel para alinhar a mira azul no chão e toque para fixar o móvel!
     </div>
 
     <video id="webcam" autoplay playsinline></video>
+    
     <div id="zona-touch"></div>
 
-    <a-scene embedded vr-mode-ui="enabled: false">
-        <a-entity light="type: ambient; intensity: 1.8;"></a-entity>
-        <a-entity light="type: directional; intensity: 1.5; position: 1 4 3;"></a-entity>
+    <a-scene embedded vr-mode-ui="enabled: false" shadow="type: pcfsoft">
+        
+        <a-entity light="type: ambient; intensity: 1.4;"></a-entity>
+        <a-entity light="type: directional; intensity: 1.2; castShadow: true; shadowMapHeight: 1024; shadowMapWidth: 1024;" position="1 4 1"></a-entity>
         
         <a-camera position="0 1.6 0" look-controls="enabled: false"></a-camera>
 
-        <a-entity position="0 0.2 -2.0" rotation="0 0 0" id="target">
+        <a-entity position="0 -0.5 -2.0" id="mira-mapeamento">
+            <a-ring color="#00d2ff" radius-inner="0.25" radius-outer="0.27" rotation="-90 0 0" material="opacity: 0.8; transparent: true"></a-ring>
+            <a-circle color="#00d2ff" radius="0.03" rotation="-90 0 0" material="opacity: 0.6; transparent: true"></a-circle>
+        </a-entity>
+
+        <a-entity position="0 -0.5 -2.0" rotation="0 0 0" id="movel-grupo" visible="false">
+            
             <a-gltf-model 
                 src="https://raw.githubusercontent.com/Anonimo5/meu-webar/main/model.glb" 
                 scale="1 1 1"
-                corrigir-cor>
+                configurar-objeto>
             </a-gltf-model>
+
+            <a-plane position="0 -0.01 0" rotation="-90 0 0" width="4" height="4" shadow="receive: true" material="shadowOnly: true; opacity: 0.5;"></a-plane>
+            
         </a-entity>
     </a-scene>
 
     <script>
+        // Inicializar Câmara Traseira
         const video = document.getElementById('webcam');
         navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } }, audio: false })
         .then(stream => { video.srcObject = stream; })
-        .catch(err => {
-            navigator.mediaDevices.getUserMedia({ video: true, audio: false }).then(stream => { video.srcObject = stream; });
-        });
+        .catch(err => { navigator.mediaDevices.getUserMedia({ video: true, audio: false }).then(stream => { video.srcObject = stream; }); });
 
-        const el = document.getElementById('target');
+        const mira = document.getElementById('mira-mapeamento');
+        const movelGrupo = document.getElementById('movel-grupo');
         const zonaTouch = document.getElementById('zona-touch');
         
+        let objetoColocado = false;
         let tpAnterior = [];
-        let distInicialPinca = 0;
 
+        // LÓGICA DO CLIQUE ESTILO APP: 
+        // Ao tocar na zona touch, o móvel fixa-se na posição da mira e a mira desaparece!
+        zonaTouch.addEventListener('click', () => {
+            if (!objetoColocado) {
+                // Ativa a visibilidade do vaso/mesa
+                movelGrupo.setAttribute('visible', 'true');
+                // Esconde a mira de mapeamento
+                mira.setAttribute('visible', 'false');
+                objetoColocado = true;
+                
+                document.querySelector('.instrucao').innerText = "🛋️ Móvel fixado! Use 2 dedos para rodar a peça.";
+            }
+        });
+
+        // Controlo de rotação por touch após o objeto ser colocado
         zonaTouch.addEventListener('touchstart', (e) => {
             tpAnterior = Array.from(e.touches).map(t => ({ x: t.clientX, y: t.clientY }));
-            if (e.touches.length === 2) {
-                distInicialPinca = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-            }
         }, { passive: true });
 
         zonaTouch.addEventListener('touchmove', (e) => {
-            if (!tpAnterior.length) return;
+            if (!tpAnterior.length || !objetoColocado) return;
 
-            // 1 DEDO: Deslocamento suave pelas coordenadas X e Z
-            if (e.touches.length === 1) {
-                const toque = e.touches[0];
-                const deltaX = toque.clientX - tpAnterior[0].x;
-                const deltaY = toque.clientY - tpAnterior[0].y;
-
-                el.object3D.position.x += deltaX * 0.004; 
-                el.object3D.position.z += deltaY * 0.006; 
-
-                tpAnterior[0] = { x: toque.clientX, y: toque.clientY };
-            } 
-            
-            // 2 DEDOS: Controles combinados de rotação, inclinação e altura
-            else if (e.touches.length === 2) {
-                const t1 = e.touches[0];
-                const t2 = e.touches[1];
+            // Se arrastar com 2 dedos, roda o móvel no próprio eixo de forma suave
+            if (e.touches.length === 2) {
+                const t1 = e.touches[0]; const t2 = e.touches[1];
+                const dxAtual = t1.clientX - t2.clientX; const dyAtual = t1.clientY - t2.clientY;
                 
-                const dxAtual = t1.clientX - t2.clientX;
-                const dyAtual = t1.clientY - t2.clientY;
-                const dxAnterior = tpAnterior[0].x - tpAnterior[1].x;
-                const dyAnterior = tpAnterior[0].y - tpAnterior[1].y;
-                
-                // Gira o objeto no eixo vertical (Y)
                 const anguloAtual = Math.atan2(dyAtual, dxAtual);
-                const anguloAnterior = Math.atan2(dyAnterior, dxAnterior);
-                el.object3D.rotation.y -= (anguloAtual - anguloAnterior) * 1.2;
-
-                // Move os dois dedos juntos para cima/baixo para TOMBAR (Inclinar em X)
-                const centroYAtual = (t1.clientY + t2.clientY) / 2;
-                const centroYAnterior = (tpAnterior[0].y + tpAnterior[1].y) / 2;
-                const deltaSubidaCen = centroYAtual - centroYAnterior;
-                el.object3D.rotation.x += deltaSubidaCen * 0.005;
-
-                // Movimento de pinça para ajustar ALTURA (Subir/Descer em Y)
-                const distAtualPinca = Math.hypot(dxAtual, dyAtual);
-                const deltaPinca = distAtualPinca - distInicialPinca;
-                el.object3D.position.y += deltaPinca * 0.003;
-
-                distInicialPinca = distAtualPinca;
-                tpAnterior[0] = { x: t1.clientX, y: t1.clientY };
+                const anguloAnterior = Math.atan2(tpAnterior[0].y - tpAnterior[1].y, tpAnterior[0].x - tpAnterior[1].x);
+                
+                movelGrupo.object3D.rotation.y -= (anguloAtual - anguloAnterior) * 1.5;
+                
+                tpAnterior[0] = { x: t1.clientX, y: t1.clientY }; 
                 tpAnterior[1] = { x: t2.clientX, y: t2.clientY };
             }
         }, { passive: true });
